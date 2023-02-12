@@ -39,6 +39,8 @@ var normalClients, rawClients sync.Map
 // ClientInterceptors declares grpc.UnaryClientInterceptors slice
 var ClientInterceptors = []grpc.UnaryClientInterceptor{}
 
+var ClientDailOption []grpc.DialOption
+
 // MustGetDtmClient 1
 func MustGetDtmClient(grpcServer string) dtmgpb.DtmClient {
 	return dtmgpb.NewDtmClient(MustGetGrpcConn(grpcServer, false))
@@ -61,7 +63,9 @@ func GetGrpcConn(grpcServer string, isRaw bool) (conn *grpc.ClientConn, rerr err
 		interceptors := append(ClientInterceptors, GrpcClientLog)
 		interceptors = append(interceptors, dtmdriver.Middlewares.Grpc...)
 		inOpt := grpc.WithChainUnaryInterceptor(interceptors...)
-		conn, rerr := grpc.Dial(grpcServer, inOpt, grpc.WithTransportCredentials(insecure.NewCredentials()), opts)
+		dialOpts := []grpc.DialOption{inOpt, grpc.WithTransportCredentials(insecure.NewCredentials()), opts}
+		dialOpts = append(dialOpts, ClientDailOption...)
+		conn, rerr := grpc.Dial(grpcServer, dialOpts...)
 		if rerr == nil {
 			clients.Store(grpcServer, conn)
 			v = conn
