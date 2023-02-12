@@ -153,6 +153,16 @@ func MayReplaceLocalhost(host string) string {
 
 var sqlDbs = &mapCache{cache: map[string]*sql.DB{}}
 
+var dbCache DbCache
+
+type DbCache interface {
+	LoadOrStore(conf DBConf, factory func(conf DBConf) (*sql.DB, error)) (*sql.DB, error)
+}
+
+func SetDbCache(c DbCache) {
+	dbCache = c
+}
+
 type mapCache struct {
 	mutex sync.Mutex
 	cache map[string]*sql.DB
@@ -175,7 +185,10 @@ func (m *mapCache) LoadOrStore(conf DBConf, factory func(conf DBConf) (*sql.DB, 
 
 // PooledDB get pooled sql.DB
 func PooledDB(conf DBConf) (*sql.DB, error) {
-	return sqlDbs.LoadOrStore(conf, StandaloneDB)
+	if dbCache == nil {
+		dbCache = sqlDbs
+	}
+	return dbCache.LoadOrStore(conf, StandaloneDB)
 }
 
 // StandaloneDB get a standalone db instance
