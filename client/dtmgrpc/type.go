@@ -63,3 +63,8 @@ func UseDriver(driverName string) error {
 func AddUnaryInterceptor(interceptor grpc.UnaryClientInterceptor) {
 	dtmgimp.ClientInterceptors = append(dtmgimp.ClientInterceptors, interceptor)
 }
+
+// AddDailOption adds grpc.DialOption
+func AddDailOption(dialOpts ...grpc.DialOption) {
+	dtmgimp.ClientDailOption = append(dtmgimp.ClientDailOption, dialOpts...)
+}
