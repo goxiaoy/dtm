@@ -173,3 +173,5 @@ retract v1.18.7
 // replace github.com/dtm-labs/dtmdriver v0.0.2 => /Users/wangxi/dtm/dtmdriver
 
 // replace github.com/dtm-labs/dtmdriver-http => /Users/wangxi/dtm/dtmdriver-http-nacos
+
+replace github.com/dtm-labs/dtmdriver-kratos => github.com/goxiaoy/dtmdriver-kratos v0.0.0-20231026152212-848d266ebd29

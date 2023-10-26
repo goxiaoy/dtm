@@ -951,8 +951,6 @@ github.com/dtm-labs/dtmdriver-ego v0.1.8 h1:nS8euCVSg5BSl3QHDIb89uDoRJqjtvcGvWyi
 github.com/dtm-labs/dtmdriver-ego v0.1.8/go.mod h1:vvYMNetDVNUtiCAVRy3OutRCiQRT0fEwdWzouCPL9JY=
 github.com/dtm-labs/dtmdriver-gozero v0.0.7 h1:EmbP0tFjczBfk+FJaPbK2Ikzyb3V5f0rn2JH1eHCVRo=
 github.com/dtm-labs/dtmdriver-gozero v0.0.7/go.mod h1:OLz0vfGkWTWK24V1Ed69lWRqu5ROXNhQM7p/oRxgdgs=
-github.com/dtm-labs/dtmdriver-kratos v0.0.9 h1:X9gF0yGrPefq7PH1Yy+RJwUvXY+kyZeiZPofD46Y8dw=
-github.com/dtm-labs/dtmdriver-kratos v0.0.9/go.mod h1:aLy3llapyW89JXAkFT2QLK8SHLnLctsPEBpNVz73rV4=
 github.com/dtm-labs/dtmdriver-polaris v0.0.5 h1:vlM3mvkgYv6GkgK49Jx1ESvYTi2Os5OdsLsvfMtrNJw=
 github.com/dtm-labs/dtmdriver-polaris v0.0.5/go.mod h1:FYF5ot7LCri5oA0qyvGzDRBZiMw08WlxjmFgzFQhIvo=
 github.com/dtm-labs/dtmdriver-springcloud v1.2.3 h1:AutSnngy+inr0PYoAT6pY/4Cw4aUZNq1pX7VN4j7tD8=
@@ -1399,6 +1397,8 @@ github.com/gotomicro/ego-component/ek8s v0.2.3/go.mod h1:AFg/GrQVZUSZM8/cMmJdyjn
 github.com/gotomicro/logrotate v0.0.0-20211108024517-45d1f9a03ff5/go.mod h1:jKlh8i9m79fE8HAO28kYLN70l87bb7olTLuX/Blex/U=
 github.com/gotomicro/logrotate v0.0.0-20211108034117-46d53eedc960 h1:vp5ls3l11a1XCaU3pJUBV85PwRW47qybqdYEIWCGLIo=
 github.com/gotomicro/logrotate v0.0.0-20211108034117-46d53eedc960/go.mod h1:jKlh8i9m79fE8HAO28kYLN70l87bb7olTLuX/Blex/U=
+github.com/goxiaoy/dtmdriver-kratos v0.0.0-20231026152212-848d266ebd29 h1:PbYHoQIr2w0vVmkglY6LijoS2zAFEi71qORYdwCYuzw=
+github.com/goxiaoy/dtmdriver-kratos v0.0.0-20231026152212-848d266ebd29/go.mod h1:aLy3llapyW89JXAkFT2QLK8SHLnLctsPEBpNVz73rV4=
 github.com/grandcat/zeroconf v0.0.0-20190424104450-85eadb44205c/go.mod h1:YjKB0WsLXlMkO9p+wGTCoPIDGRJH0mz7E526PxkQVxI=
 github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7/go.mod h1:FecbI9+v66THATjSRHfNgh1IVFe/9kFxbXtjV0ctIMA=
 github.com/grpc-ecosystem/go-grpc-middleware v1.0.0/go.mod h1:FiyG127CGDf3tlThmgyCl78X/SZQqEOJBCDaAfeWzPs=
