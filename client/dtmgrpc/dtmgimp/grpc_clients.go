@@ -66,6 +66,8 @@ func GetGrpcConn(grpcServer string, isRaw bool) (conn *grpc.ClientConn, rerr err
 			clients.Store(grpcServer, conn)
 			v = conn
 			logger.Debugf("grpc client inited for %s", grpcServer)
+		} else {
+			logger.Errorf("grpc client init error %v for %s", rerr, grpcServer)
 		}
 	}
 	return v.(*grpc.ClientConn), rerr
