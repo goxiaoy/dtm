@@ -4,9 +4,12 @@
  * license that can be found in the LICENSE file.
  */
 
+// package boltdb implement the storage for sql database
 package sql
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -52,13 +55,28 @@ func (s *Store) FindTransGlobalStore(gid string) *storage.TransGlobalStore {
 }
 
 // ScanTransGlobalStores lists GlobalTrans data
-func (s *Store) ScanTransGlobalStores(position *string, limit int64) []storage.TransGlobalStore {
+func (s *Store) ScanTransGlobalStores(position *string, limit int64, condition storage.TransGlobalScanCondition) []storage.TransGlobalStore {
 	globals := []storage.TransGlobalStore{}
 	lid := math.MaxInt64
 	if *position != "" {
 		lid = dtmimp.MustAtoi(*position)
 	}
-	dbr := dbGet().Must().Where("id < ?", lid).Order("id desc").Limit(int(limit)).Find(&globals)
+	query := dbGet().Must().Where("id < ?", lid)
+	if condition.Status != "" {
+		query = query.Where("status = ?", condition.Status)
+	}
+	if condition.TransType != "" {
+		query = query.Where("trans_type = ?", condition.TransType)
+	}
+	if !condition.CreateTimeStart.IsZero() {
+		query = query.Where("create_time >= ?", condition.CreateTimeStart.Format("2006-01-02 15:04:05"))
+	}
+	if !condition.CreateTimeEnd.IsZero() {
+		query = query.Where("create_time <= ?", condition.CreateTimeEnd.Format("2006-01-02 15:04:05"))
+	}
+
+	dbr := query.Order("id desc").Limit(int(limit)).Find(&globals)
+
 	if dbr.RowsAffected < limit {
 		*position = ""
 	} else {
@@ -143,23 +161,26 @@ func (s *Store) LockOneGlobalTrans(expireIn time.Duration) *storage.TransGlobalS
 	db := dbGet()
 	owner := shortuuid.New()
 	nextCronTime := getTimeStr(int64(expireIn / time.Second))
-	where := map[string]string{
-		dtmimp.DBTypeMysql:    fmt.Sprintf(`next_cron_time < '%s' and status in ('prepared', 'aborting', 'submitted') limit 1`, nextCronTime),
-		dtmimp.DBTypePostgres: fmt.Sprintf(`id in (select id from trans_global where next_cron_time < '%s' and status in ('prepared', 'aborting', 'submitted') limit 1 )`, nextCronTime),
+	where := fmt.Sprintf(`next_cron_time < '%s' and status in ('prepared', 'aborting', 'submitted')`, nextCronTime)
+
+	order := map[string]string{
+		dtmimp.DBTypeMysql:    `order by rand()`,
+		dtmimp.DBTypePostgres: `order by random()`,
 	}[conf.Store.Driver]
 
-	ssql := fmt.Sprintf(`select count(1) from trans_global where %s`, where)
-	var cnt int64
-	err := db.ToSQLDB().QueryRow(ssql).Scan(&cnt)
-	dtmimp.PanicIf(err != nil, err)
-	if cnt == 0 {
+	ssql := fmt.Sprintf(`select id from trans_global where %s %s limit 1`, where, order)
+	var id int64
+	err := db.ToSQLDB().QueryRow(ssql).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
+	dtmimp.PanicIf(err != nil, err)
 
-	sql := fmt.Sprintf(`UPDATE trans_global SET update_time='%s',next_cron_time='%s', owner='%s' WHERE %s`,
+	sql := fmt.Sprintf(`UPDATE trans_global SET update_time='%s',next_cron_time='%s', owner='%s' WHERE id=%d and %s`,
 		getTimeStr(0),
 		getTimeStr(conf.RetryInterval),
 		owner,
+		id,
 		where)
 	affected, err := dtmimp.DBExec(conf.Store.Driver, db.ToSQLDB(), sql)
 
@@ -187,6 +208,17 @@ func (s *Store) ResetCronTime(after time.Duration, limit int64) (succeedCount in
 		where)
 	affected, err := dtmimp.DBExec(conf.Store.Driver, dbGet().ToSQLDB(), sql)
 	return affected, affected == limit, err
+}
+
+// ResetTransGlobalCronTime reset nextCronTime of one global trans.
+func (s *Store) ResetTransGlobalCronTime(global *storage.TransGlobalStore) error {
+	now := getTimeStr(0)
+	sql := fmt.Sprintf(`UPDATE trans_global SET update_time='%s',next_cron_time='%s' WHERE gid = '%s'`,
+		now,
+		now,
+		global.Gid)
+	_, err := dtmimp.DBExec(conf.Store.Driver, dbGet().ToSQLDB(), sql)
+	return err
 }
 
 // ScanKV lists KV pairs

@@ -4,6 +4,7 @@
  * license that can be found in the LICENSE file.
  */
 
+// package boltdb implement the storage for boltdb
 package boltdb
 
 import (
@@ -68,7 +69,8 @@ func initializeBuckets(db *bolt.DB) error {
 }
 
 // cleanupExpiredData will clean the expired data in boltdb, the
-//    expired time is configurable.
+//
+//	expired time is configurable.
 func cleanupExpiredData(expire time.Duration, db *bolt.DB) error {
 	if expire <= 0 {
 		return nil
@@ -311,7 +313,7 @@ func (s *Store) FindTransGlobalStore(gid string) (trans *storage.TransGlobalStor
 }
 
 // ScanTransGlobalStores lists GlobalTrans data
-func (s *Store) ScanTransGlobalStores(position *string, limit int64) []storage.TransGlobalStore {
+func (s *Store) ScanTransGlobalStores(position *string, limit int64, condition storage.TransGlobalScanCondition) []storage.TransGlobalStore {
 	globals := []storage.TransGlobalStore{}
 	err := s.boltDb.View(func(t *bolt.Tx) error {
 		cursor := t.Bucket(bucketGlobal).Cursor()
@@ -321,6 +323,12 @@ func (s *Store) ScanTransGlobalStores(position *string, limit int64) []storage.T
 			}
 			g := storage.TransGlobalStore{}
 			dtmimp.MustUnmarshal(v, &g)
+			if !((condition.Status == "" || g.Status == condition.Status) &&
+				(condition.TransType == "" || g.TransType == condition.TransType) &&
+				(condition.CreateTimeStart.IsZero() || g.CreateTime.After(condition.CreateTimeStart)) &&
+				(condition.CreateTimeEnd.IsZero() || g.CreateTime.Before(condition.CreateTimeEnd))) {
+				continue
+			}
 			globals = append(globals, g)
 			if len(globals) == int(limit) {
 				break
@@ -474,6 +482,23 @@ func (s *Store) ResetCronTime(after time.Duration, limit int64) (succeedCount in
 		return nil
 	})
 	return
+}
+
+// ResetTransGlobalCronTime reset nextCronTime of one global trans.
+func (s *Store) ResetTransGlobalCronTime(g *storage.TransGlobalStore) error {
+	err := s.boltDb.Update(func(t *bolt.Tx) error {
+		g := tGetGlobal(t, g.Gid)
+		if g == nil {
+			return storage.ErrNotFound
+		}
+		now := dtmutil.GetNextTime(0)
+		g.NextCronTime = now
+		g.UpdateTime = now
+		tPutGlobal(t, g)
+		return nil
+	})
+	dtmimp.E2P(err)
+	return err
 }
 
 // ScanKV lists KV pairs

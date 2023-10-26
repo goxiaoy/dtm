@@ -1,6 +1,7 @@
 package dtmsvr
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -85,6 +86,15 @@ func (t *TransGlobal) changeStatus(status string, opts ...changeStatusOption) {
 	t.Status = status
 }
 
+func (t *TransGlobal) resetNextCronTime() error {
+	err := GetStore().ResetTransGlobalCronTime(&t.TransGlobalStore)
+	if err != nil {
+		return err
+	}
+	logger.Infof("ResetTransGlobalCronTime to now ok for %s", t.TransGlobalStore.String())
+	return nil
+}
+
 func (t *TransGlobal) changeBranchStatus(b *TransBranch, status string, branchPos int) {
 	now := time.Now()
 	b.Status = status
@@ -118,7 +128,7 @@ func (t *TransGlobal) needProcess() bool {
 	return t.Status == dtmcli.StatusSubmitted || t.Status == dtmcli.StatusAborting || t.Status == dtmcli.StatusPrepared && t.isTimeout()
 }
 
-func (t *TransGlobal) getURLResult(uri string, branchID, op string, branchPayload []byte) error {
+func (t *TransGlobal) getURLResult(ctx context.Context, uri string, branchID, op string, branchPayload []byte) error {
 	if uri == "" { // empty url is success
 		return nil
 	}
@@ -128,7 +138,7 @@ func (t *TransGlobal) getURLResult(uri string, branchID, op string, branchPayloa
 		}
 		return t.getHTTPResult(uri, branchID, op, branchPayload)
 	}
-	return t.getGrpcResult(uri, branchID, op, branchPayload)
+	return t.getGrpcResult(ctx, uri, branchID, op, branchPayload)
 }
 
 func (t *TransGlobal) getHTTPResult(uri string, branchID, op string, branchPayload []byte) error {
@@ -183,7 +193,7 @@ func (t *TransGlobal) getJSONRPCResult(uri string, branchID, op string, branchPa
 	return err
 }
 
-func (t *TransGlobal) getGrpcResult(uri string, branchID, op string, branchPayload []byte) error {
+func (t *TransGlobal) getGrpcResult(ctx context.Context, uri string, branchID, op string, branchPayload []byte) error {
 	// grpc handler
 	server, method, err := dtmdriver.GetDriver().ParseServerMethod(uri)
 	if err != nil {
@@ -191,7 +201,7 @@ func (t *TransGlobal) getGrpcResult(uri string, branchID, op string, branchPaylo
 	}
 
 	conn := dtmgimp.MustGetGrpcConn(server, true)
-	ctx := dtmgimp.TransInfo2Ctx(t.Context, t.Gid, t.TransType, branchID, op, "")
+	ctx = dtmgimp.TransInfo2Ctx(ctx, t.Gid, t.TransType, branchID, op, "")
 	kvs := dtmgimp.Map2Kvs(t.Ext.Headers)
 	kvs = append(kvs, dtmgimp.Map2Kvs(t.BranchHeaders)...)
 	ctx = metadata.AppendToOutgoingContext(ctx, kvs...)
@@ -203,8 +213,8 @@ func (t *TransGlobal) getGrpcResult(uri string, branchID, op string, branchPaylo
 	return dtmgrpc.GrpcError2DtmError(err)
 }
 
-func (t *TransGlobal) getBranchResult(branch *TransBranch) (string, error) {
-	err := t.getURLResult(branch.URL, branch.BranchID, branch.Op, branch.BinData)
+func (t *TransGlobal) getBranchResult(ctx context.Context, branch *TransBranch) (string, error) {
+	err := t.getURLResult(ctx, branch.URL, branch.BranchID, branch.Op, branch.BinData)
 	if err == nil {
 		return dtmcli.StatusSucceed, nil
 	} else if t.TransType == "saga" && branch.Op == dtmimp.OpAction && errors.Is(err, dtmcli.ErrFailure) {
@@ -216,8 +226,8 @@ func (t *TransGlobal) getBranchResult(branch *TransBranch) (string, error) {
 	return "", fmt.Errorf("your http/grpc result should be specified as in:\nhttp://d.dtm.pub/practice/arch.html#proto\nunkown result will be retried: %w", err)
 }
 
-func (t *TransGlobal) execBranch(branch *TransBranch, branchPos int) error {
-	status, err := t.getBranchResult(branch)
+func (t *TransGlobal) execBranch(ctx context.Context, branch *TransBranch, branchPos int) error {
+	status, err := t.getBranchResult(ctx, branch)
 	if status != "" {
 		t.changeBranchStatus(branch, status, branchPos)
 	}
@@ -252,13 +262,15 @@ func (t *TransGlobal) execBranch(branch *TransBranch, branchPos int) error {
 func (t *TransGlobal) getNextCronInterval(ctype cronType) int64 {
 	if ctype == cronBackoff {
 		return t.NextCronInterval * 2
-	} else if ctype == cronKeep {
-		return t.NextCronInterval
-	} else if t.RetryInterval != 0 {
-		return t.RetryInterval
-	} else if t.TimeoutToFail > 0 && t.TimeoutToFail < conf.RetryInterval {
-		return t.TimeoutToFail
-	} else {
-		return conf.RetryInterval
 	}
+	if ctype == cronKeep {
+		return t.NextCronInterval
+	}
+	if t.RetryInterval != 0 {
+		return t.RetryInterval
+	}
+	if t.TimeoutToFail > 0 && t.TimeoutToFail < conf.RetryInterval {
+		return t.TimeoutToFail
+	}
+	return conf.RetryInterval
 }
